@@ -3,8 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { downscaleToDataUrl } from "../lib/downscale";
 import type { GenResult, ProductImage, StyleSpec } from "../types";
-import { IconImage, IconPlus, IconSparkle, IconUpload } from "./icons";
-import { RecipeCard } from "./RecipeCard";
+import { IconImage, IconSparkle, IconUpload } from "./icons";
 import { ResultCard } from "./ResultCard";
 
 const MAX_REFERENCES = 2;
@@ -16,6 +15,7 @@ export function BatchGenerator() {
   const [styleSpec, setStyleSpec] = useState<StyleSpec | null>(null);
   const [results, setResults] = useState<GenResult[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [dragging, setDragging] = useState(false);
 
   const canGenerate =
     products.length > 0 && references.length > 0 && !isGenerating;
@@ -118,29 +118,46 @@ export function BatchGenerator() {
   }
 
   return (
-    <div className="space-y-8">
-      <header className="max-w-xl space-y-2">
-        <h1 className="font-display text-3xl leading-tight sm:text-4xl">
-          Drop products. Borrow a <span className="italic">mood</span>.
-        </h1>
-        <p className="text-[15px] leading-relaxed text-muted">
-          Upload your product shots and one reference scene. You get a styled
-          social post for each product — rendered as they land.
-        </p>
-      </header>
+    <div className="flex h-full min-h-0 flex-col gap-4">
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragging(false);
+          const imgs = Array.from(e.dataTransfer.files).filter((f) =>
+            f.type.startsWith("image/"),
+          );
+          if (imgs.length) addProducts(imgs);
+        }}
+        className={`min-h-0 flex-1 overflow-y-auto rounded-card p-4 transition-colors sm:p-5 ${
+          dragging ? "bg-surface" : "bg-surface/40"
+        }`}
+      >
+        {results.length > 0 ? (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {results.map((r) => (
+              <ResultCard key={r.id} result={r} onRetry={handleRetry} />
+            ))}
+          </div>
+        ) : (
+          <EmptyResults />
+        )}
+      </div>
 
-      <div className="grid gap-5 lg:grid-cols-[1fr_minmax(300px,380px)]">
-        <section className="space-y-3">
-          <SectionLabel n="01" title="Product images" hint="one post each" />
-          <UploadZone
-            label="Add product images"
-            hint="PNG or JPG · multiple"
-            multiple
-            onFiles={addProducts}
-            Icon={IconUpload}
-          />
-          {products.length > 0 && (
-            <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4">
+      <div className="shrink-0 rounded-card border border-edge bg-surface p-3 shadow-soft">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <UploadButton
+              label="Products"
+              Icon={IconUpload}
+              multiple
+              onFiles={addProducts}
+            />
+            <div className="flex min-w-0 gap-2 overflow-x-auto">
               {products.map((p) => (
                 <Thumb
                   key={p.id}
@@ -152,146 +169,88 @@ export function BatchGenerator() {
                 />
               ))}
             </div>
-          )}
-        </section>
-
-        <section className="space-y-3">
-          <SectionLabel
-            n="02"
-            title="Reference mood"
-            hint={`${references.length}/${MAX_REFERENCES}`}
-          />
-          {references.length < MAX_REFERENCES && (
-            <UploadZone
-              label="Add reference"
-              hint="the style to match"
-              multiple={false}
-              onFiles={addReferences}
-              Icon={IconImage}
-            />
-          )}
-          {references.length > 0 && (
-            <>
-              <div className="flex gap-2.5">
-                {references.map((url, i) => (
-                  <Thumb
-                    key={i}
-                    src={url}
-                    alt={`Reference ${i + 1}`}
-                    onRemove={() => {
-                      setReferences((prev) => prev.filter((u) => u !== url));
-                      setStyleSpec(null);
-                    }}
-                  />
-                ))}
-              </div>
-              <RecipeCard spec={styleSpec} referenceUrl={references[0]} />
-            </>
-          )}
-        </section>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          disabled={!canGenerate}
-          onClick={handleGenerate}
-          className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-ink px-5 py-3 text-sm font-medium text-canvas transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
-        >
-          <IconSparkle className="h-4 w-4" />
-          {isGenerating
-            ? "Generating…"
-            : `Generate ${products.length || ""} post${products.length === 1 ? "" : "s"}`.trim()}
-        </button>
-        {!canGenerate && !isGenerating && (
-          <span className="text-sm text-muted">
-            Add at least one product and one reference.
-          </span>
-        )}
-      </div>
-
-      {results.length > 0 && (
-        <section className="space-y-3">
-          <SectionLabel n="03" title="Generated posts" hint="renders as it lands" />
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {results.map((r) => (
-              <ResultCard key={r.id} result={r} onRetry={handleRetry} />
-            ))}
           </div>
-        </section>
-      )}
+
+          <div className="flex items-center gap-2 lg:border-l lg:border-edge lg:pl-3">
+            {references.length < MAX_REFERENCES && (
+              <UploadButton
+                label="Reference"
+                Icon={IconImage}
+                multiple={false}
+                onFiles={addReferences}
+              />
+            )}
+            <div className="flex gap-2">
+              {references.map((url, i) => (
+                <Thumb
+                  key={i}
+                  src={url}
+                  alt={`Reference ${i + 1}`}
+                  onRemove={() => {
+                    setReferences((prev) => prev.filter((u) => u !== url));
+                    setStyleSpec(null);
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            disabled={!canGenerate}
+            onClick={handleGenerate}
+            className="inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-full bg-ink px-5 py-3 text-sm font-medium text-canvas transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100 lg:ml-auto"
+          >
+            <IconSparkle className="h-4 w-4" />
+            {isGenerating
+              ? "Generating…"
+              : `Generate${products.length ? ` ${products.length}` : ""}`}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
 
-function SectionLabel({ n, title, hint }: { n: string; title: string; hint: string }) {
+function EmptyResults() {
   return (
-    <div className="flex items-baseline gap-2.5">
-      <span className="font-mono text-xs text-muted">{n}</span>
-      <h2 className="text-sm font-semibold">{title}</h2>
-      <span className="font-mono text-[11px] uppercase tracking-wider text-muted">
-        {hint}
-      </span>
+    <div className="grid h-full min-h-[240px] place-items-center text-center">
+      <div className="max-w-xs space-y-2">
+        <span className="mx-auto grid h-11 w-11 place-items-center rounded-xl bg-canvas text-muted">
+          <IconSparkle className="h-5 w-5" />
+        </span>
+        <p className="font-display text-lg">Your posts appear here</p>
+        <p className="text-sm text-muted">
+          Add products and a reference below, then generate — each post lands the
+          moment it&rsquo;s ready.
+        </p>
+      </div>
     </div>
   );
 }
 
-function UploadZone({
+function UploadButton({
   label,
-  hint,
+  Icon,
   multiple,
   onFiles,
-  Icon,
 }: {
   label: string;
-  hint: string;
+  Icon: typeof IconUpload;
   multiple: boolean;
   onFiles: (files: FileList | File[]) => void;
-  Icon: typeof IconUpload;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [dragging, setDragging] = useState(false);
-
   return (
-    <div
-      onDragOver={(e) => {
-        e.preventDefault();
-        setDragging(true);
-      }}
-      onDragLeave={() => setDragging(false)}
-      onDrop={(e) => {
-        e.preventDefault();
-        setDragging(false);
-        const images = Array.from(e.dataTransfer.files).filter((f) =>
-          f.type.startsWith("image/"),
-        );
-        if (images.length) onFiles(images);
-      }}
-      className={`group flex cursor-pointer items-center gap-3 rounded-card border border-dashed px-4 py-4 transition-colors ${
-        dragging
-          ? "border-ink bg-surface"
-          : "border-edge bg-surface/60 hover:border-ink/40 hover:bg-surface"
-      }`}
-      onClick={() => inputRef.current?.click()}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          inputRef.current?.click();
-        }
-      }}
-    >
-      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-canvas text-ink">
-        <Icon className="h-5 w-5" />
-      </span>
-      <span className="min-w-0">
-        <span className="flex items-center gap-1.5 text-sm font-medium">
-          <IconPlus className="h-3.5 w-3.5" />
-          {label}
-        </span>
-        <span className="text-xs text-muted">{hint}</span>
-      </span>
+    <>
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full border border-edge bg-canvas px-3.5 py-2.5 text-xs font-medium text-ink transition-colors hover:border-ink/40"
+      >
+        <Icon className="h-4 w-4" />
+        {label}
+      </button>
       <input
         ref={inputRef}
         type="file"
@@ -303,7 +262,7 @@ function UploadZone({
           e.target.value = "";
         }}
       />
-    </div>
+    </>
   );
 }
 
@@ -317,15 +276,16 @@ function Thumb({
   onRemove: () => void;
 }) {
   return (
-    <div className="group relative aspect-square overflow-hidden rounded-xl border border-edge bg-canvas">
+    <div className="group relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-edge bg-canvas">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={src} alt={alt} className="h-full w-full object-cover" />
       <button
         type="button"
         onClick={onRemove}
         aria-label={`Remove ${alt}`}
-        className="absolute right-1.5 top-1.5 grid h-6 w-6 cursor-pointer place-items-center rounded-full bg-ink/70 text-canvas opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+        className="absolute inset-0 grid cursor-pointer place-items-center bg-ink/60 text-canvas opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
       >
-        <span aria-hidden className="text-sm leading-none">
+        <span aria-hidden className="text-base leading-none">
           ×
         </span>
       </button>

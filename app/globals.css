@@ -28,7 +28,7 @@
 
 /* ── Base ──────────────────────────────────────────────────────────────── */
 body {
-  background: var(--color-canvas);
+  background: var(--color-panel);
   color: var(--color-ink);
   font-family: var(--font-sans);
 }
