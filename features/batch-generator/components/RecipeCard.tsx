@@ -1,4 +1,4 @@
-import type { StyleSpec } from "@/app/_lib/types";
+import type { StyleSpec } from "../types";
 
 export function RecipeCard({
   spec,

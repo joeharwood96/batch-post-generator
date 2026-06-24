@@ -1,9 +1,9 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { downscaleToDataUrl } from "@/app/_lib/downscale";
-import { MOCK_STYLE_SPEC, simulateGeneration } from "@/app/_lib/mock";
-import type { GenResult, ProductImage } from "@/app/_lib/types";
+import { downscaleToDataUrl } from "../lib/downscale";
+import { MOCK_STYLE_SPEC, simulateGeneration } from "../lib/mock";
+import type { GenResult, ProductImage } from "../types";
 import { IconImage, IconPlus, IconSparkle, IconUpload } from "./icons";
 import { RecipeCard } from "./RecipeCard";
 import { ResultCard } from "./ResultCard";

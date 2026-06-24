@@ -1,4 +1,4 @@
-import type { GenResult } from "@/app/_lib/types";
+import type { GenResult } from "../types";
 import { IconAlert, IconCheck, IconRetry } from "./icons";
 
 const STATUS: Record<

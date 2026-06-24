@@ -1,4 +1,4 @@
-import type { GenResult, ProviderId, StyleSpec } from "./types";
+import type { GenResult, ProviderId, StyleSpec } from "../types";
 
 export const MOCK_STYLE_SPEC: StyleSpec = {
   title: "Martian Dusk",
