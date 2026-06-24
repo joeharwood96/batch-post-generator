@@ -1,5 +1,10 @@
 import "server-only";
 
 export { generateStyledImage } from "./server/generate";
-export { generateRequestSchema } from "./schema";
-export type { GenerateRequest, GenerateResponse } from "./schema";
+export { describeReference } from "./server/styleSpec";
+export { generateRequestSchema, styleSpecRequestSchema } from "./schema";
+export type {
+  GenerateRequest,
+  GenerateResponse,
+  StyleSpecRequest,
+} from "./schema";

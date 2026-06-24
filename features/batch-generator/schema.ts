@@ -30,8 +30,16 @@ export const generateRequestSchema = z.object({
 
 export type GenerateRequest = z.infer<typeof generateRequestSchema>;
 
+export const styleSpecRequestSchema = z.object({
+  referenceImages: z.array(imageDataUrl).min(1).max(2),
+});
+
+export type StyleSpecRequest = z.infer<typeof styleSpecRequestSchema>;
+
 export interface GenerateResponse {
   image: string;
   providerUsed: ProviderId;
   attempts: number;
+  caption?: string;
+  hashtags?: string[];
 }

@@ -1,9 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { downscaleToDataUrl } from "../lib/downscale";
-import { MOCK_STYLE_SPEC } from "../lib/mock";
-import type { GenResult, ProductImage } from "../types";
+import type { GenResult, ProductImage, StyleSpec } from "../types";
 import { IconImage, IconPlus, IconSparkle, IconUpload } from "./icons";
 import { RecipeCard } from "./RecipeCard";
 import { ResultCard } from "./ResultCard";
@@ -14,11 +13,30 @@ const MAX_CONCURRENCY = 3;
 export function BatchGenerator() {
   const [products, setProducts] = useState<ProductImage[]>([]);
   const [references, setReferences] = useState<string[]>([]);
+  const [styleSpec, setStyleSpec] = useState<StyleSpec | null>(null);
   const [results, setResults] = useState<GenResult[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
 
   const canGenerate =
     products.length > 0 && references.length > 0 && !isGenerating;
+
+  useEffect(() => {
+    if (references.length === 0) return;
+    let active = true;
+    fetch("/api/style-spec", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ referenceImages: references }),
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((body) => {
+        if (active && body?.spec) setStyleSpec(body.spec as StyleSpec);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [references]);
 
   async function addProducts(files: FileList | File[]) {
     const items = await Promise.all(
@@ -36,6 +54,7 @@ export function BatchGenerator() {
       Array.from(files).map((file) => downscaleToDataUrl(file)),
     );
     setReferences((prev) => [...prev, ...urls].slice(0, MAX_REFERENCES));
+    setStyleSpec(null);
   }
 
   const updateResult = (id: string, patch: Partial<GenResult>) =>
@@ -52,6 +71,7 @@ export function BatchGenerator() {
         body: JSON.stringify({
           productImage: result.productDataUrl,
           referenceImages,
+          styleSpec: styleSpec ?? undefined,
         }),
       });
       const body = await res.json().catch(() => null);
@@ -63,6 +83,8 @@ export function BatchGenerator() {
         image: body.image,
         providerUsed: body.providerUsed,
         attempts: body.attempts,
+        caption: body.caption,
+        hashtags: body.hashtags,
       });
     } catch (err) {
       updateResult(result.id, {
@@ -156,13 +178,14 @@ export function BatchGenerator() {
                     key={i}
                     src={url}
                     alt={`Reference ${i + 1}`}
-                    onRemove={() =>
-                      setReferences((prev) => prev.filter((u) => u !== url))
-                    }
+                    onRemove={() => {
+                      setReferences((prev) => prev.filter((u) => u !== url));
+                      setStyleSpec(null);
+                    }}
                   />
                 ))}
               </div>
-              <RecipeCard spec={MOCK_STYLE_SPEC} referenceUrl={references[0]} />
+              <RecipeCard spec={styleSpec} referenceUrl={references[0]} />
             </>
           )}
         </section>

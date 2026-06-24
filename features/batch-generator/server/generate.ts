@@ -4,6 +4,7 @@ import { parseDataUrl, toDataUrl } from "../lib/image";
 import type { GenerateRequest, GenerateResponse } from "../schema";
 import { generateWithFailover } from "./failover";
 import { buildGenerationPrompt } from "./prompt";
+import { writeCaption } from "./text";
 import { geminiProvider } from "./providers/gemini";
 import { openaiProvider } from "./providers/openai";
 import type { ImageProvider } from "./providers/types";
@@ -23,15 +24,16 @@ export async function generateStyledImage(
     throw new Error("No image providers are configured");
   }
 
-  const result = await generateWithFailover(
-    { prompt, product, references },
-    providers,
-    signal,
-  );
+  const [result, caption] = await Promise.all([
+    generateWithFailover({ prompt, product, references }, providers, signal),
+    writeCaption(product, input.styleSpec),
+  ]);
 
   return {
     image: toDataUrl(result.base64, result.mimeType),
     providerUsed: result.providerUsed,
     attempts: result.attempts,
+    caption: caption?.caption,
+    hashtags: caption?.hashtags,
   };
 }
