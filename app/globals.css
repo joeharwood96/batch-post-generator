@@ -1,26 +1,90 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* ── Design tokens (Tailwind v4, CSS-first) ────────────────────────────── */
+@theme {
+  --color-canvas: #fbf3e6; /* warm cream page */
+  --color-panel: #fcfaf8; /* floating app panel */
+  --color-surface: #ffffff; /* cards */
+  --color-ink: #1a1a18; /* near-black text + primary action */
+  --color-muted: #8a857c; /* secondary text */
+  --color-edge: #ece6da; /* faint warm borders */
+  --color-accent: #e8a33d; /* warm amber highlight */
+  --color-generating: #e8a33d; /* status: amber */
+  --color-done: #6fae7e; /* status: soft green */
+  --color-error: #c97b6a; /* status: soft terracotta */
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --font-display: var(--font-fraunces);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  --radius-card: 18px;
+  --radius-panel: 28px;
+
+  --shadow-soft: 0 1px 2px rgba(40, 33, 20, 0.04),
+    0 12px 32px -16px rgba(40, 33, 20, 0.18);
+  --shadow-panel: 0 2px 6px rgba(40, 33, 20, 0.04),
+    0 30px 70px -32px rgba(40, 33, 20, 0.25);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* ── Base ──────────────────────────────────────────────────────────────── */
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+/* Visible keyboard focus everywhere, on brand */
+:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+
+/* ── Motion ────────────────────────────────────────────────────────────── */
+@keyframes card-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: blur(0);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@keyframes develop-shimmer {
+  0% {
+    background-position: -150% 0;
+  }
+  100% {
+    background-position: 250% 0;
+  }
+}
+
+.animate-reveal {
+  animation: card-reveal 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.shimmer {
+  background-image: linear-gradient(
+    100deg,
+    transparent 30%,
+    rgba(232, 163, 61, 0.14) 50%,
+    transparent 70%
+  );
+  background-size: 200% 100%;
+  animation: develop-shimmer 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
