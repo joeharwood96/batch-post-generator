@@ -2,20 +2,20 @@
 
 import { useRef, useState } from "react";
 import { downscaleToDataUrl } from "../lib/downscale";
-import { MOCK_STYLE_SPEC, simulateGeneration } from "../lib/mock";
+import { MOCK_STYLE_SPEC } from "../lib/mock";
 import type { GenResult, ProductImage } from "../types";
 import { IconImage, IconPlus, IconSparkle, IconUpload } from "./icons";
 import { RecipeCard } from "./RecipeCard";
 import { ResultCard } from "./ResultCard";
 
 const MAX_REFERENCES = 2;
+const MAX_CONCURRENCY = 3;
 
 export function BatchGenerator() {
   const [products, setProducts] = useState<ProductImage[]>([]);
   const [references, setReferences] = useState<string[]>([]);
   const [results, setResults] = useState<GenResult[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
-  const inflightRef = useRef(0);
 
   const canGenerate =
     products.length > 0 && references.length > 0 && !isGenerating;
@@ -43,25 +43,37 @@ export function BatchGenerator() {
       prev.map((r) => (r.id === id ? { ...r, ...patch } : r)),
     );
 
-  function settleOne() {
-    inflightRef.current -= 1;
-    if (inflightRef.current <= 0) setIsGenerating(false);
+  async function processOne(result: GenResult, referenceImages: string[]) {
+    updateResult(result.id, { state: "generating", error: undefined });
+    try {
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          productImage: result.productDataUrl,
+          referenceImages,
+        }),
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(body?.error ?? `Request failed (${res.status})`);
+      }
+      updateResult(result.id, {
+        state: "done",
+        image: body.image,
+        providerUsed: body.providerUsed,
+        attempts: body.attempts,
+      });
+    } catch (err) {
+      updateResult(result.id, {
+        state: "error",
+        error: err instanceof Error ? err.message : "Generation failed",
+      });
+    }
   }
 
-  function runOne(result: GenResult, index: number) {
-    setTimeout(() => {
-      updateResult(result.id, { state: "generating" });
-      simulateGeneration(index)
-        .then((fields) => updateResult(result.id, { state: "done", ...fields }))
-        .catch((err: Error) =>
-          updateResult(result.id, { state: "error", error: err.message }),
-        )
-        .finally(settleOne);
-    }, index * 220);
-  }
-
-  function handleGenerate() {
-    setIsGenerating(true);
+  async function handleGenerate() {
+    const referenceImages = references;
     const initial: GenResult[] = products.map((p) => ({
       id: crypto.randomUUID(),
       productId: p.id,
@@ -69,18 +81,18 @@ export function BatchGenerator() {
       productDataUrl: p.dataUrl,
       state: "pending",
     }));
-    inflightRef.current = initial.length;
     setResults(initial);
-    initial.forEach(runOne);
+    setIsGenerating(true);
+    await runWithConcurrency(
+      initial.map((r) => () => processOne(r, referenceImages)),
+      MAX_CONCURRENCY,
+    );
+    setIsGenerating(false);
   }
 
-  function handleRetry(id: string) {
-    updateResult(id, { state: "generating", error: undefined });
-    simulateGeneration(0)
-      .then((fields) => updateResult(id, { state: "done", ...fields }))
-      .catch((err: Error) =>
-        updateResult(id, { state: "error", error: err.message }),
-      );
+  async function handleRetry(id: string) {
+    const result = results.find((r) => r.id === id);
+    if (result) await processOne(result, references);
   }
 
   return (
@@ -300,4 +312,20 @@ function Thumb({
 
 function prettyName(filename: string): string {
   return filename.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ");
+}
+
+async function runWithConcurrency(
+  tasks: Array<() => Promise<void>>,
+  limit: number,
+) {
+  let cursor = 0;
+  const worker = async () => {
+    while (cursor < tasks.length) {
+      const index = cursor++;
+      await tasks[index]();
+    }
+  };
+  await Promise.all(
+    Array.from({ length: Math.min(limit, tasks.length) }, worker),
+  );
 }

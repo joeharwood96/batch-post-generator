@@ -72,10 +72,18 @@ export function ResultCard({
 
       <div className="flex flex-1 flex-col gap-2 p-3.5">
         {state === "done" ? (
-          <>
-            <p className="font-display text-lg leading-snug">{result.caption}</p>
-            <p className="text-xs text-muted">{result.hashtags?.join("  ")}</p>
-          </>
+          result.caption ? (
+            <>
+              <p className="font-display text-lg leading-snug">
+                {result.caption}
+              </p>
+              {result.hashtags && result.hashtags.length > 0 && (
+                <p className="text-xs text-muted">
+                  {result.hashtags.join("  ")}
+                </p>
+              )}
+            </>
+          ) : null
         ) : (
           <div className="space-y-1.5" aria-hidden>
             <div className="h-3.5 w-4/5 rounded-full bg-canvas" />
