@@ -17,7 +17,7 @@ export async function generateStyledImage(
 ): Promise<GenerateResponse> {
   const product = parseDataUrl(input.productImage);
   const references = input.referenceImages.map(parseDataUrl);
-  const prompt = buildGenerationPrompt(input.styleSpec);
+  const prompt = buildGenerationPrompt(input.styleSpec, references.length);
 
   const providers = PROVIDER_CHAIN.filter((p) => p.isConfigured());
   if (providers.length === 0) {

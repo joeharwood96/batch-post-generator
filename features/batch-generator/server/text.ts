@@ -21,15 +21,24 @@ export async function analyzeReference(
   const ai = getClient();
   if (!ai || references.length === 0) return null;
 
+  const multi = references.length > 1;
   const prompt = [
-    "Analyze the reference image(s) as a visual mood for product photography.",
+    multi
+      ? `You are given ${references.length} different reference images. INVENT ONE new, coherent, photoreal environment that fuses distinctive elements from ALL ${references.length} of them into a single believable scene for a product photo (e.g. the architecture of one inside the landscape/sky/palette of another).`
+      : "Analyze the reference image as a visual mood for product photography.",
     "Respond with strict JSON of this exact shape:",
     '{"title": string, "accentWord": string, "mood": string, "lighting": string, "setting": string, "palette": string[], "summary": string}',
     'title: a 2-3 word evocative name (e.g. "Martian Dusk").',
     "accentWord: one word taken from the title.",
-    "mood, lighting, setting: short phrases of a few words each.",
-    "palette: exactly 5 dominant colors as hex strings.",
-    "summary: one sentence describing the look.",
+    multi
+      ? "setting: a concrete one-line description of the invented fused environment that explicitly names a signature element from EACH reference. mood, lighting: short phrases that combine cues from every reference."
+      : "mood, lighting, setting: short phrases of a few words each.",
+    multi
+      ? "palette: exactly 5 hex colors sampled across ALL the references."
+      : "palette: exactly 5 dominant colors as hex strings.",
+    multi
+      ? "summary: one vivid sentence describing the fused scene, drawing on every reference."
+      : "summary: one sentence describing the look.",
   ].join("\n");
 
   try {
