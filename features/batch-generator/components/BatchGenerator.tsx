@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { downscaleToDataUrl } from "../lib/downscale";
 import type { GenResult, ProductImage, StyleSpec } from "../types";
 import { IconImage, IconSparkle, IconUpload } from "./icons";
@@ -9,34 +9,46 @@ import { ResultCard } from "./ResultCard";
 const MAX_REFERENCES = 2;
 const MAX_CONCURRENCY = 3;
 
+type StyleStatus = "idle" | "analyzing" | "ready" | "failed";
+
 export function BatchGenerator() {
   const [products, setProducts] = useState<ProductImage[]>([]);
   const [references, setReferences] = useState<string[]>([]);
   const [styleSpec, setStyleSpec] = useState<StyleSpec | null>(null);
+  const [styleStatus, setStyleStatus] = useState<StyleStatus>("idle");
   const [results, setResults] = useState<GenResult[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const styleToken = useRef(0);
 
   const canGenerate =
     products.length > 0 && references.length > 0 && !isGenerating;
 
-  useEffect(() => {
-    if (references.length === 0) return;
-    let active = true;
-    fetch("/api/style-spec", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ referenceImages: references }),
-    })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((body) => {
-        if (active && body?.spec) setStyleSpec(body.spec as StyleSpec);
-      })
-      .catch(() => {});
-    return () => {
-      active = false;
-    };
-  }, [references]);
+  async function analyzeStyle(refs: string[]) {
+    const token = ++styleToken.current;
+    if (refs.length === 0) {
+      setStyleSpec(null);
+      setStyleStatus("idle");
+      return;
+    }
+    setStyleSpec(null);
+    setStyleStatus("analyzing");
+
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const spec = await fetchStyleSpec(refs);
+      if (token !== styleToken.current) return;
+      if (spec) {
+        setStyleSpec(spec);
+        setStyleStatus("ready");
+        return;
+      }
+      if (attempt === 0) {
+        await wait(800);
+        if (token !== styleToken.current) return;
+      }
+    }
+    setStyleStatus("failed");
+  }
 
   async function addProducts(files: FileList | File[]) {
     const items = await Promise.all(
@@ -53,8 +65,15 @@ export function BatchGenerator() {
     const urls = await Promise.all(
       Array.from(files).map((file) => downscaleToDataUrl(file)),
     );
-    setReferences((prev) => [...prev, ...urls].slice(0, MAX_REFERENCES));
-    setStyleSpec(null);
+    const next = [...references, ...urls].slice(0, MAX_REFERENCES);
+    setReferences(next);
+    analyzeStyle(next);
+  }
+
+  function removeReference(url: string) {
+    const next = references.filter((u) => u !== url);
+    setReferences(next);
+    analyzeStyle(next);
   }
 
   const updateResult = (id: string, patch: Partial<GenResult>) =>
@@ -149,6 +168,13 @@ export function BatchGenerator() {
       </div>
 
       <div className="shrink-0 rounded-card border border-edge bg-surface p-3 shadow-soft">
+        {references.length > 0 && (
+          <StyleChip
+            status={styleStatus}
+            title={styleSpec?.title}
+            onRetry={() => analyzeStyle(references)}
+          />
+        )}
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
           <div className="flex min-w-0 flex-1 items-center gap-2">
             <UploadButton
@@ -186,10 +212,7 @@ export function BatchGenerator() {
                   key={i}
                   src={url}
                   alt={`Reference ${i + 1}`}
-                  onRemove={() => {
-                    setReferences((prev) => prev.filter((u) => u !== url));
-                    setStyleSpec(null);
-                  }}
+                  onRemove={() => removeReference(url)}
                 />
               ))}
             </div>
@@ -291,6 +314,70 @@ function Thumb({
       </button>
     </div>
   );
+}
+
+function StyleChip({
+  status,
+  title,
+  onRetry,
+}: {
+  status: StyleStatus;
+  title?: string;
+  onRetry: () => void;
+}) {
+  if (status === "idle") return null;
+
+  if (status === "ready") {
+    return (
+      <div className="mb-3 flex items-center gap-2 text-xs text-muted">
+        <span className="h-1.5 w-1.5 rounded-full bg-done" />
+        Style locked
+        {title ? <span className="font-medium text-ink">· {title}</span> : null}
+      </div>
+    );
+  }
+
+  if (status === "failed") {
+    return (
+      <div className="mb-3 flex items-center gap-2 text-xs text-muted">
+        <span className="h-1.5 w-1.5 rounded-full bg-error" />
+        Couldn&rsquo;t read the reference style — posts use a looser match.
+        <button
+          type="button"
+          onClick={onRetry}
+          className="cursor-pointer font-medium text-ink underline-offset-2 hover:underline"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mb-3 flex items-center gap-2 text-xs text-muted">
+      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-generating" />
+      Reading reference style…
+    </div>
+  );
+}
+
+async function fetchStyleSpec(refs: string[]): Promise<StyleSpec | null> {
+  try {
+    const res = await fetch("/api/style-spec", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ referenceImages: refs }),
+    });
+    if (!res.ok) return null;
+    const body = await res.json().catch(() => null);
+    return (body?.spec as StyleSpec) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function prettyName(filename: string): string {

@@ -17,6 +17,7 @@ function getClient(): GoogleGenAI | null {
 
 export async function analyzeReference(
   references: ImageInput[],
+  signal?: AbortSignal,
 ): Promise<StyleSpec | null> {
   const ai = getClient();
   if (!ai || references.length === 0) return null;
@@ -50,7 +51,10 @@ export async function analyzeReference(
           inlineData: { mimeType: ref.mimeType, data: ref.base64 },
         })),
       ],
-      config: { responseMimeType: "application/json" },
+      config: {
+        responseMimeType: "application/json",
+        abortSignal: signal,
+      },
     });
     const text = res.text;
     if (!text) return null;
@@ -64,6 +68,7 @@ export async function analyzeReference(
 export async function writeCaption(
   product: ImageInput,
   spec?: StyleSpec,
+  signal?: AbortSignal,
 ): Promise<{ caption: string; hashtags: string[] } | null> {
   const ai = getClient();
   if (!ai) return null;
@@ -85,7 +90,10 @@ export async function writeCaption(
         { text: prompt },
         { inlineData: { mimeType: product.mimeType, data: product.base64 } },
       ],
-      config: { responseMimeType: "application/json" },
+      config: {
+        responseMimeType: "application/json",
+        abortSignal: signal,
+      },
     });
     const text = res.text;
     if (!text) return null;

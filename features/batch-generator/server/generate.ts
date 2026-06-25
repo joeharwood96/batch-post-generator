@@ -26,7 +26,7 @@ export async function generateStyledImage(
 
   const [result, caption] = await Promise.all([
     generateWithFailover({ prompt, product, references }, providers, signal),
-    writeCaption(product, input.styleSpec),
+    writeCaption(product, input.styleSpec, signal),
   ]);
 
   return {

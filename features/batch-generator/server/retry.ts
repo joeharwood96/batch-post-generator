@@ -36,7 +36,7 @@ export async function withRetry<T>(
   throw lastErr;
 }
 
-function defaultIsRetryable(err: unknown): boolean {
+export function defaultIsRetryable(err: unknown): boolean {
   if (err && typeof err === "object" && "retryable" in err) {
     return Boolean((err as { retryable?: boolean }).retryable);
   }

@@ -27,7 +27,10 @@ export const geminiProvider: ImageProvider = {
   id: "gemini",
   isConfigured: () => Boolean(process.env.GEMINI_API_KEY),
 
-  async generate(args: GenerateImageArgs): Promise<ProviderImageResult> {
+  async generate(
+    args: GenerateImageArgs,
+    signal?: AbortSignal,
+  ): Promise<ProviderImageResult> {
     const ai = getClient();
 
     const contents = [
@@ -45,7 +48,11 @@ export const geminiProvider: ImageProvider = {
 
     let response;
     try {
-      response = await ai.models.generateContent({ model: MODEL, contents });
+      response = await ai.models.generateContent({
+        model: MODEL,
+        contents,
+        config: { abortSignal: signal },
+      });
     } catch (err) {
       throw toProviderError(err);
     }

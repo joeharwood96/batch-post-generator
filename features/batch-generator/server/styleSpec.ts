@@ -6,6 +6,7 @@ import { analyzeReference } from "./text";
 
 export async function describeReference(
   referenceImages: string[],
+  signal?: AbortSignal,
 ): Promise<StyleSpec | null> {
-  return analyzeReference(referenceImages.map(parseDataUrl));
+  return analyzeReference(referenceImages.map(parseDataUrl), signal);
 }

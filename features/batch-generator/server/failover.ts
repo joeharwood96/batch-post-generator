@@ -2,7 +2,7 @@ import "server-only";
 
 import type { ProviderId } from "../types";
 import type { GenerateImageArgs, ImageProvider } from "./providers/types";
-import { withRetry } from "./retry";
+import { defaultIsRetryable, withRetry } from "./retry";
 
 export interface FailoverResult {
   base64: string;
@@ -29,7 +29,7 @@ export async function generateWithFailover(
     try {
       const { value, attempts } = await withRetry(
         () => provider.generate(args, signal),
-        { signal, isRetryable },
+        { signal, isRetryable: defaultIsRetryable },
       );
       return { ...value, providerUsed: provider.id, attempts };
     } catch (err) {
@@ -40,11 +40,4 @@ export async function generateWithFailover(
   }
 
   throw new AllProvidersFailedError(lastError);
-}
-
-function isRetryable(err: unknown): boolean {
-  if (err && typeof err === "object" && "retryable" in err) {
-    return Boolean((err as { retryable?: boolean }).retryable);
-  }
-  return true;
 }

@@ -30,7 +30,10 @@ export const openaiProvider: ImageProvider = {
   id: "openai",
   isConfigured: () => Boolean(process.env.OPENAI_API_KEY),
 
-  async generate(args: GenerateImageArgs): Promise<ProviderImageResult> {
+  async generate(
+    args: GenerateImageArgs,
+    signal?: AbortSignal,
+  ): Promise<ProviderImageResult> {
     const openai = getClient();
 
     const images = await Promise.all(
@@ -39,13 +42,16 @@ export const openaiProvider: ImageProvider = {
 
     let response;
     try {
-      response = await openai.images.edit({
-        model: MODEL,
-        image: images,
-        prompt: args.prompt,
-        size: SIZE,
-        quality: QUALITY,
-      });
+      response = await openai.images.edit(
+        {
+          model: MODEL,
+          image: images,
+          prompt: args.prompt,
+          size: SIZE,
+          quality: QUALITY,
+        },
+        { signal },
+      );
     } catch (err) {
       throw toProviderError(err);
     }
