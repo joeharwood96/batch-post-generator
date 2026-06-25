@@ -1,6 +1,6 @@
 import { IconCode } from "./icons";
 
-const REPO_URL = "https://github.com/";
+const REPO_URL = "https://github.com/joeharwood96/batch-post-generator";
 
 export function CodeLink() {
   return (

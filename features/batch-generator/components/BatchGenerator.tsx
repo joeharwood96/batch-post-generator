@@ -7,6 +7,7 @@ import { IconImage, IconSparkle, IconUpload } from "./icons";
 import { ResultCard } from "./ResultCard";
 
 const MAX_REFERENCES = 2;
+const MAX_PRODUCTS = 12;
 const MAX_CONCURRENCY = 3;
 
 type StyleStatus = "idle" | "analyzing" | "ready" | "failed";
@@ -58,7 +59,7 @@ export function BatchGenerator() {
         dataUrl: await downscaleToDataUrl(file),
       })),
     );
-    setProducts((prev) => [...prev, ...items]);
+    setProducts((prev) => [...prev, ...items].slice(0, MAX_PRODUCTS));
   }
 
   async function addReferences(files: FileList | File[]) {
@@ -183,6 +184,11 @@ export function BatchGenerator() {
               multiple
               onFiles={addProducts}
             />
+            {products.length > 0 && (
+              <span className="shrink-0 text-xs text-muted">
+                {products.length}/{MAX_PRODUCTS}
+              </span>
+            )}
             <div className="flex min-w-0 gap-2 overflow-x-auto">
               {products.map((p) => (
                 <Thumb
